@@ -13,6 +13,39 @@ const _defaultKeybinds = {
   open_notes: '', open_tasks: '', open_theme: '',
 };
 
+const _SHORTCUT_TOOLTIPS = {
+  'tool-calendar-btn': { label: 'Calendar', action: 'open_calendar' },
+  'tool-notes-btn': { label: 'Notes', action: 'open_notes' },
+  'user-bar-settings': { label: 'Settings', action: 'settings' },
+};
+
+function _formatShortcutTooltip(combo) {
+  if (!combo || typeof combo !== 'string') return '';
+  return combo.split('+').map(part => {
+    const key = part.trim().toLowerCase();
+    if (!key) return '';
+    if (key === 'ctrl') return 'Ctrl';
+    if (key === 'alt') return 'Alt';
+    if (key === 'shift') return 'Shift';
+    if (key === 'meta') return 'Cmd';
+    if (key === 'escape') return 'Esc';
+    if (key === 'space') return 'Space';
+    if (key.length === 1) return key.toUpperCase();
+    return key.charAt(0).toUpperCase() + key.slice(1);
+  }).filter(Boolean).join('+');
+}
+
+export function updateShortcutTooltips() {
+  const kb = window._odysseusKeybinds || {};
+  for (const id in _SHORTCUT_TOOLTIPS) {
+    const item = _SHORTCUT_TOOLTIPS[id];
+    const btn = document.getElementById(id);
+    if (!btn) continue;
+    const shortcut = _formatShortcutTooltip(kb[item.action]);
+    btn.title = shortcut ? `${item.label} (${shortcut})` : item.label;
+  }
+}
+
 function _matchesCombo(e, combo) {
   if (!combo) return false;
   const parts = combo.split('+');
@@ -49,11 +82,15 @@ export function initKeyboardShortcuts(modules) {
   } = modules;
 
   window._odysseusKeybinds = { ..._defaultKeybinds };
+  updateShortcutTooltips();
 
   // Load saved keybinds
   fetch('/api/auth/settings', { credentials: 'same-origin' })
     .then(r => r.json())
-    .then(s => { if (s.keybinds) window._odysseusKeybinds = { ..._defaultKeybinds, ...s.keybinds }; })
+    .then(s => {
+      if (s.keybinds) window._odysseusKeybinds = { ..._defaultKeybinds, ...s.keybinds };
+      updateShortcutTooltips();
+    })
     .catch(() => {});
 
   // ── Esc cancels select mode (capture phase, before modal-close) ──
