@@ -1894,6 +1894,7 @@ async function initShortcuts() {
       });
       // Update global keybinds so they take effect immediately
       window._odysseusKeybinds = keybinds;
+      window.dispatchEvent(new CustomEvent('odysseus:keybinds-updated'));
       if (uiModule && uiModule.showToast) uiModule.showToast('Shortcut saved');
     } catch (e) {
       console.error('Failed to save keybinds:', e);

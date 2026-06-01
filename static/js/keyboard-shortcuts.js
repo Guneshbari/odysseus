@@ -13,6 +13,133 @@ const _defaultKeybinds = {
   open_notes: '', open_tasks: '', open_theme: '',
 };
 
+const _KEYBINDS_UPDATED_EVENT = 'odysseus:keybinds-updated';
+let _shortcutTooltipListenerBound = false;
+
+const _OPEN_TOOL_SHORTCUTS = {
+  open_calendar: {
+    buttonId: 'tool-calendar-btn',
+    targetIds: ['tool-calendar-btn', 'rail-calendar'],
+    label: 'Calendar',
+  },
+  open_compare: {
+    buttonId: 'tool-compare-btn',
+    targetIds: ['tool-compare-btn', 'rail-compare'],
+    label: 'Compare',
+  },
+  open_cookbook: {
+    buttonId: 'tool-cookbook-btn',
+    targetIds: ['tool-cookbook-btn', 'rail-cookbook'],
+    label: 'Cookbook',
+  },
+  open_research: {
+    buttonId: 'tool-research-btn',
+    targetIds: ['tool-research-btn', 'rail-research'],
+    label: 'Deep Research',
+  },
+  open_gallery: {
+    buttonId: 'tool-gallery-btn',
+    targetIds: ['tool-gallery-btn', 'rail-gallery'],
+    label: 'Gallery',
+  },
+  open_library: {
+    buttonId: 'tool-library-btn',
+    targetIds: ['tool-library-btn', 'rail-archive'],
+    label: 'Library',
+  },
+  open_memory: {
+    buttonId: 'tool-memory-btn',
+    targetIds: ['tool-memory-btn', 'rail-memory'],
+    label: 'Brain',
+  },
+  open_notes: {
+    buttonId: 'tool-notes-btn',
+    targetIds: ['tool-notes-btn', 'rail-notes'],
+    label: 'Notes',
+  },
+  open_tasks: {
+    buttonId: 'tool-tasks-btn',
+    targetIds: ['tool-tasks-btn', 'rail-tasks'],
+    label: 'Tasks',
+  },
+  open_theme: {
+    buttonId: 'tool-theme-btn',
+    targetIds: ['tool-theme-btn', 'rail-theme'],
+    label: 'Theme',
+  },
+};
+
+const _VISIBLE_SHORTCUTS = {
+  search: { targetIds: ['rail-search-btn', 'sidebar-search-btn'] },
+  toggle_sidebar: { targetIds: ['hamburger-btn', 'sidebar-toggle-btn'] },
+  new_session: { targetIds: ['rail-new-session', 'sidebar-brand-btn', 'sidebar-new-chat-btn'] },
+  delete_session: { targetIds: ['rail-delete-session'] },
+  incognito: { targetIds: ['incognito-btn', 'incognito-indicator'], dynamicTitle: true, refreshOnClick: true },
+  settings: { targetIds: ['user-bar-settings', 'rail-settings'], label: 'Settings' },
+};
+
+function _formatShortcutTooltip(combo) {
+  if (!combo || typeof combo !== 'string') return '';
+  return combo.split('+').map(part => {
+    const key = part.trim().toLowerCase();
+    if (!key) return '';
+    if (key === 'ctrl') return 'Ctrl';
+    if (key === 'alt') return 'Alt';
+    if (key === 'shift') return 'Shift';
+    if (key === 'meta') return 'Cmd';
+    if (key === 'escape') return 'Esc';
+    if (key === 'space') return 'Space';
+    if (key.length === 1) return key.toUpperCase();
+    return key.charAt(0).toUpperCase() + key.slice(1);
+  }).filter(Boolean).join('+');
+}
+
+function _stripShortcutSuffix(label) {
+  return String(label || '').replace(/\s+\((?:Ctrl|Alt|Shift|Cmd|Meta|Esc|Escape|Space|[A-Z0-9,/])+[\w+,\-/ ]*\)$/i, '').trim();
+}
+
+function _tooltipBaseLabel(btn, item) {
+  if (!item.dynamicTitle && btn.dataset.shortcutTooltipBase) return btn.dataset.shortcutTooltipBase;
+  const base = item.label || btn.getAttribute('title') || btn.textContent.trim();
+  const cleanBase = _stripShortcutSuffix(base);
+  btn.dataset.shortcutTooltipBase = cleanBase;
+  return cleanBase;
+}
+
+function _updateShortcutTooltip(action, item) {
+  const targetIds = item.targetIds || [item.buttonId];
+  const kb = window._odysseusKeybinds || {};
+  const shortcut = _formatShortcutTooltip(kb[action]);
+  targetIds.forEach(id => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    const base = _tooltipBaseLabel(btn, item);
+    if (!base) return;
+    btn.title = shortcut ? `${base} (${shortcut})` : base;
+  });
+}
+
+function updateShortcutTooltips() {
+  for (const action in _OPEN_TOOL_SHORTCUTS) {
+    _updateShortcutTooltip(action, _OPEN_TOOL_SHORTCUTS[action]);
+  }
+  for (const action in _VISIBLE_SHORTCUTS) {
+    _updateShortcutTooltip(action, _VISIBLE_SHORTCUTS[action]);
+  }
+}
+
+function _bindTooltipRefreshTargets() {
+  for (const action in _VISIBLE_SHORTCUTS) {
+    const item = _VISIBLE_SHORTCUTS[action];
+    if (!item.refreshOnClick) continue;
+    item.targetIds.forEach(id => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener('click', () => setTimeout(updateShortcutTooltips, 0));
+    });
+  }
+}
+
 function _matchesCombo(e, combo) {
   if (!combo) return false;
   const parts = combo.split('+');
@@ -49,11 +176,21 @@ export function initKeyboardShortcuts(modules) {
   } = modules;
 
   window._odysseusKeybinds = { ..._defaultKeybinds };
+  updateShortcutTooltips();
+
+  if (!_shortcutTooltipListenerBound) {
+    window.addEventListener(_KEYBINDS_UPDATED_EVENT, updateShortcutTooltips);
+    _bindTooltipRefreshTargets();
+    _shortcutTooltipListenerBound = true;
+  }
 
   // Load saved keybinds
   fetch('/api/auth/settings', { credentials: 'same-origin' })
     .then(r => r.json())
-    .then(s => { if (s.keybinds) window._odysseusKeybinds = { ..._defaultKeybinds, ...s.keybinds }; })
+    .then(s => {
+      if (s.keybinds) window._odysseusKeybinds = { ..._defaultKeybinds, ...s.keybinds };
+      updateShortcutTooltips();
+    })
     .catch(() => {});
 
   // ── Esc cancels select mode (capture phase, before modal-close) ──
@@ -257,22 +394,10 @@ export function initKeyboardShortcuts(modules) {
     }
     // Open-tool shortcuts — click the sidebar tool button so each tool's
     // own open/toggle logic runs. Unbound (empty) combos never match.
-    const _toolBtns = {
-      open_calendar: 'tool-calendar-btn',
-      open_compare:  'tool-compare-btn',
-      open_cookbook: 'tool-cookbook-btn',
-      open_research: 'tool-research-btn',
-      open_gallery:  'tool-gallery-btn',
-      open_library:  'tool-library-btn',
-      open_memory:   'tool-memory-btn',
-      open_notes:    'tool-notes-btn',
-      open_tasks:    'tool-tasks-btn',
-      open_theme:    'tool-theme-btn',
-    };
-    for (const action in _toolBtns) {
+    for (const action in _OPEN_TOOL_SHORTCUTS) {
       if (_matchesCombo(e, kb[action])) {
         e.preventDefault();
-        const b = el(_toolBtns[action]);
+        const b = el(_OPEN_TOOL_SHORTCUTS[action].buttonId);
         if (b) b.click();
         return;
       }
