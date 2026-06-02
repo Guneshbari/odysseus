@@ -2,6 +2,8 @@
 // Keyboard Shortcuts — dynamic keybinds
 // ============================================
 
+import { IS_MAC, isAltGrEvent } from './platform.js';
+
 const _defaultKeybinds = {
   search: 'ctrl+k', toggle_sidebar: 'ctrl+alt+b', new_session: 'ctrl+alt+n',
   fav_session: 'ctrl+alt+f', delete_session: 'ctrl+alt+d',
@@ -71,10 +73,7 @@ const _OPEN_TOOL_SHORTCUTS = {
 
 const _VISIBLE_SHORTCUTS = {
   search: { targetIds: ['rail-search-btn', 'sidebar-search-btn'] },
-  toggle_sidebar: { targetIds: ['hamburger-btn', 'sidebar-toggle-btn'] },
   new_session: { targetIds: ['rail-new-session', 'sidebar-brand-btn', 'sidebar-new-chat-btn'] },
-  delete_session: { targetIds: ['rail-delete-session'] },
-  incognito: { targetIds: ['incognito-btn', 'incognito-indicator'], dynamicTitle: true, refreshOnClick: true },
   settings: { targetIds: ['user-bar-settings', 'rail-settings'], label: 'Settings' },
 };
 
@@ -99,7 +98,7 @@ function _stripShortcutSuffix(label) {
 }
 
 function _tooltipBaseLabel(btn, item) {
-  if (!item.dynamicTitle && btn.dataset.shortcutTooltipBase) return btn.dataset.shortcutTooltipBase;
+  if (btn.dataset.shortcutTooltipBase) return btn.dataset.shortcutTooltipBase;
   const base = item.label || btn.getAttribute('title') || btn.textContent.trim();
   const cleanBase = _stripShortcutSuffix(base);
   btn.dataset.shortcutTooltipBase = cleanBase;
@@ -128,20 +127,11 @@ function updateShortcutTooltips() {
   }
 }
 
-function _bindTooltipRefreshTargets() {
-  for (const action in _VISIBLE_SHORTCUTS) {
-    const item = _VISIBLE_SHORTCUTS[action];
-    if (!item.refreshOnClick) continue;
-    item.targetIds.forEach(id => {
-      const btn = document.getElementById(id);
-      if (!btn) return;
-      btn.addEventListener('click', () => setTimeout(updateShortcutTooltips, 0));
-    });
-  }
-}
-
-function _matchesCombo(e, combo) {
+export function _matchesCombo(e, combo, isMac = IS_MAC) {
   if (!combo) return false;
+  // Drop AltGr keystrokes so typing characters on non-US layouts can't fire a
+  // Ctrl+Alt shortcut — e.g. the destructive delete_session. See platform.js.
+  if (isAltGrEvent(e, isMac)) return false;
   const parts = combo.split('+');
   const needCtrl = parts.includes('ctrl');
   const needAlt = parts.includes('alt');
@@ -180,7 +170,6 @@ export function initKeyboardShortcuts(modules) {
 
   if (!_shortcutTooltipListenerBound) {
     window.addEventListener(_KEYBINDS_UPDATED_EVENT, updateShortcutTooltips);
-    _bindTooltipRefreshTargets();
     _shortcutTooltipListenerBound = true;
   }
 
