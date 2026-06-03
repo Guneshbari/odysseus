@@ -3697,6 +3697,28 @@ function _wireRow(row, container) {
       const prev = row.previousElementSibling;
       row.remove();
       if (prev && prev.classList.contains('note-cl-row')) prev.querySelector('.note-cl-text')?.focus();
+    } else if (e.key === 'ArrowUp') {
+      if (txt.selectionStart === 0 && txt.selectionEnd === 0) {
+        const prevRow = row.previousElementSibling;
+        const prevTxt = prevRow?.querySelector('.note-cl-text');
+        if (prevTxt) {
+          e.preventDefault();
+          prevTxt.focus();
+          const len = prevTxt.value.length;
+          prevTxt.setSelectionRange(len, len);
+        }
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (txt.selectionStart === txt.value.length && txt.selectionEnd === txt.value.length) {
+        const nextRow = row.nextElementSibling;
+        const nextTxt = nextRow?.querySelector('.note-cl-text');
+        if (nextTxt) {
+          e.preventDefault();
+          nextTxt.focus();
+          const len = nextTxt.value.length;
+          nextTxt.setSelectionRange(len, len);
+        }
+      }
     }
   });
   // Drag handlers
