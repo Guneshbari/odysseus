@@ -73,8 +73,17 @@ const _OPEN_TOOL_SHORTCUTS = {
 
 const _VISIBLE_SHORTCUTS = {
   search: { targetIds: ['rail-search-btn', 'sidebar-search-btn'] },
-  new_session: { targetIds: ['rail-new-session', 'sidebar-brand-btn', 'sidebar-new-chat-btn'] },
-  settings: { targetIds: ['user-bar-settings', 'rail-settings'], label: 'Settings' },
+  new_session: {
+    targetIds: [
+      'rail-new-session',
+      'sidebar-brand-btn',
+      'sidebar-new-chat-btn'
+    ]
+  },
+  settings: {
+    targetIds: ['user-bar-settings', 'rail-settings'],
+    label: 'Settings'
+  }
 };
 
 function _formatShortcutTooltip(combo) {
@@ -94,12 +103,24 @@ function _formatShortcutTooltip(combo) {
 }
 
 function _stripShortcutSuffix(label) {
-  return String(label || '').replace(/\s+\((?:Ctrl|Alt|Shift|Cmd|Meta|Esc|Escape|Space|[A-Z0-9,/])+[\w+,\-/ ]*\)$/i, '').trim();
+  return String(label || '')
+    .replace(
+      /\s+\((?:Ctrl|Alt|Shift|Cmd|Meta|Esc|Escape|Space|[A-Z0-9,/])+[\w+,\-/ ]*\)$/i,
+      ''
+    )
+    .trim();
 }
 
 function _tooltipBaseLabel(btn, item) {
-  if (btn.dataset.shortcutTooltipBase) return btn.dataset.shortcutTooltipBase;
-  const base = item.label || btn.getAttribute('title') || btn.textContent.trim();
+  if (btn.dataset.shortcutTooltipBase) {
+    return btn.dataset.shortcutTooltipBase;
+  }
+
+  const base =
+    item.label ||
+    btn.getAttribute('title') ||
+    btn.textContent.trim();
+
   const cleanBase = _stripShortcutSuffix(base);
   btn.dataset.shortcutTooltipBase = cleanBase;
   return cleanBase;
@@ -109,19 +130,25 @@ function _updateShortcutTooltip(action, item) {
   const targetIds = item.targetIds || [item.buttonId];
   const kb = window._odysseusKeybinds || {};
   const shortcut = _formatShortcutTooltip(kb[action]);
+
   targetIds.forEach(id => {
     const btn = document.getElementById(id);
     if (!btn) return;
+
     const base = _tooltipBaseLabel(btn, item);
     if (!base) return;
-    btn.title = shortcut ? `${base} (${shortcut})` : base;
+
+    btn.title = shortcut
+      ? `${base} (${shortcut})`
+      : base;
   });
 }
 
-function updateShortcutTooltips() {
+export function updateShortcutTooltips() {
   for (const action in _OPEN_TOOL_SHORTCUTS) {
     _updateShortcutTooltip(action, _OPEN_TOOL_SHORTCUTS[action]);
   }
+
   for (const action in _VISIBLE_SHORTCUTS) {
     _updateShortcutTooltip(action, _VISIBLE_SHORTCUTS[action]);
   }
@@ -168,10 +195,13 @@ export function initKeyboardShortcuts(modules) {
   window._odysseusKeybinds = { ..._defaultKeybinds };
   updateShortcutTooltips();
 
-  if (!_shortcutTooltipListenerBound) {
-    window.addEventListener(_KEYBINDS_UPDATED_EVENT, updateShortcutTooltips);
-    _shortcutTooltipListenerBound = true;
-  }
+if (!_shortcutTooltipListenerBound) {
+  window.addEventListener(
+    _KEYBINDS_UPDATED_EVENT,
+    updateShortcutTooltips
+  );
+  _shortcutTooltipListenerBound = true;
+}
 
   // Load saved keybinds
   fetch('/api/auth/settings', { credentials: 'same-origin' })

@@ -6,6 +6,7 @@ import searchModule from './search.js';
 import { makeWindowDraggable } from './windowDrag.js';
 import { clearDockSide } from './modalSnap.js';
 import { sortModelIds } from './modelSort.js';
+import { updateShortcutTooltips } from './keyboard-shortcuts.js';
 import { isAltGrEvent } from './platform.js';
 
 let initialized = false;
@@ -1402,6 +1403,7 @@ async function initResearchSettings() {
   var tokensInput = el('set-researchMaxTokens');
   var extractTimeoutInput = el('set-researchExtractTimeout');
   var extractConcurrencyInput = el('set-researchExtractConcurrency');
+  var runTimeoutInput = el('set-researchRunTimeout');
   var msg = el('set-researchMsg');
   var endpoints = [];
 
@@ -1424,6 +1426,9 @@ async function initResearchSettings() {
     if (settings.research_max_tokens) tokensInput.value = settings.research_max_tokens;
     if (settings.research_extraction_timeout_seconds) extractTimeoutInput.value = settings.research_extraction_timeout_seconds;
     if (settings.research_extraction_concurrency) extractConcurrencyInput.value = settings.research_extraction_concurrency;
+    if (settings.research_run_timeout_seconds !== undefined && settings.research_run_timeout_seconds !== null) {
+      runTimeoutInput.value = settings.research_run_timeout_seconds;
+    }
   } catch (e) { console.warn('Failed to load research settings', e); }
 
   function showStatus() {
@@ -1441,6 +1446,12 @@ async function initResearchSettings() {
     }
     if (extractConcurrencyInput.value) {
       parts.push('Parallel: ' + extractConcurrencyInput.value);
+    }
+    if (runTimeoutInput.value !== '') {
+      var rtv = parseInt(runTimeoutInput.value, 10);
+      if (!isNaN(rtv)) {
+        parts.push(rtv === 0 ? 'Max time: no limit' : 'Max time: ' + rtv + 's');
+      }
     }
     if (parts.length) {
       msg.textContent = parts.join(' · ');
@@ -1463,6 +1474,13 @@ async function initResearchSettings() {
     if (et && et >= 15 && et <= 3600) payload.research_extraction_timeout_seconds = et;
     var ec = parseInt(extractConcurrencyInput.value, 10);
     if (ec && ec >= 1 && ec <= 12) payload.research_extraction_concurrency = ec;
+    if (runTimeoutInput.value !== '') {
+      var rt = parseInt(runTimeoutInput.value, 10);
+      // 0 = no limit (disables the hard timeout); otherwise 60s..86400s (24h)
+      if (!isNaN(rt) && (rt === 0 || (rt >= 60 && rt <= 86400))) {
+        payload.research_run_timeout_seconds = rt;
+      }
+    }
     try {
       await fetch('/api/auth/settings', { method: 'POST', credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -1481,6 +1499,7 @@ async function initResearchSettings() {
   tokensInput.addEventListener('change', saveResearch);
   extractTimeoutInput.addEventListener('change', saveResearch);
   extractConcurrencyInput.addEventListener('change', saveResearch);
+  runTimeoutInput.addEventListener('change', saveResearch);
 
   _registerAiEndpointRefresh(function(nextEndpoints) {
     endpoints = nextEndpoints;
